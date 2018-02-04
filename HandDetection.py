@@ -1,19 +1,23 @@
 # For QHacks 2018 - Sean Remedios, Taylor Simpson, Jacob Klein, Monica Rao
 
+#Send Position, Angle
+
 import cv2
 import numpy as np
 import time
+#from DaylightPong import function(position, angle)
+#import threading
 
 #Open Camera object
 cap = cv2.VideoCapture(0)
 
 #Decrease frame size
 if hasattr(cv2, 'cv'):
-	cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1000)
-	cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 600)
+	cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1400)
+	cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 850)
 else:
-	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1000)
-	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 600)
+	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1400)
+	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 850)
 
 def nothing(x):
 	pass
@@ -43,11 +47,12 @@ cv2.createTrackbar('h', 'HSV_TrackBar',0,179,nothing)
 cv2.createTrackbar('s', 'HSV_TrackBar',0,255,nothing)
 cv2.createTrackbar('v', 'HSV_TrackBar',0,255,nothing)
 
-# To track finger movement
+# To track finger movement - Initialized to -1 so everything is bigger
 previousFinger = [(-1,-1), (-1,-1), (-1,-1), (-1,-1), (-1,-1)]
-# Gesture size in pixels
-GESTURESIZE = 200
-MAX_DISTANCE = 600
+# Gesture size in pixels - for determining swipe
+GESTURESIZE = 50
+#Max distance in pixels - for determining if hand movement was complete jerk
+MAX_DISTANCE = 400
 
 while(1):
 
@@ -84,7 +89,7 @@ while(1):
 	median = cv2.medianBlur(dilation2,5)
 	ret,thresh = cv2.threshold(median,127,255,0)
 	
-	# im2 not used
+	#im2 not used, needed for function return
 	#Find contours of the filtered frame
 	im2, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)   
 
@@ -166,21 +171,35 @@ while(1):
 	for i in range(0,len(fingers)):
 		distance = np.sqrt(np.power(fingers[i][0]-centerMass[0],2)+np.power(fingers[i][1]-centerMass[0],2))
 		fingerDistance.append(distance)
-
-		pointToPlace = (fingers[i][0], fingers[i][1])
-		deltaX = previousFinger[i][0] - pointToPlace[0]
-		deltaY = previousFinger[i][1] - pointToPlace[1]
-		absDeltaX = np.absolute(deltaX)
-		absDeltaY = np.absolute(deltaY)
-		#Find the fingers and place a circle on them
-		#cv2.circle(frame, pointToPlace, 10, [100,255,255], 3)
-		cv2.circle(frame, pointToPlace, 10, [0,255,0], 3)
-		if absDeltaX >= GESTURESIZE or absDeltaY >= GESTURESIZE:
-			if absDeltaX > MAX_DISTANCE or absDeltaY > MAX_DISTANCE:
-				continue
-			#cv2.line(frame,previousFinger[i],pointToPlace,[0,255,0],1)
-			print ("Previous Finger: %s" % (previousFinger[i],) + " - Moved Finger: %s" % (pointToPlace,))
-		previousFinger[i] = pointToPlace
+	
+		#Only get one point that is the largest distance from the center of mass (longest finger)
+		if max(fingerDistance) == distance:
+			#Deltas for determining gesture distance
+			pointToPlace = (fingers[i][0], fingers[i][1])
+			deltaX = previousFinger[i][0] - pointToPlace[0]
+			deltaY = previousFinger[i][1] - pointToPlace[1]
+			absDeltaX = np.absolute(deltaX)
+			absDeltaY = np.absolute(deltaY)
+			#Find the fingers and place a circle on them
+			#cv2.circle(frame, pointToPlace, 10, [100,255,255], 3)
+			cv2.circle(frame, pointToPlace, 10, [0,255,0], 3)
+			#Make sure the previous point wasn't a default
+			if (previousFinger[i][0] != -1 or previousFinger[i][1] != -1) and (previousFinger[i][0] != 0 or previousFinger[i][1] != 0):
+				#Gesture distance is a swipe
+				if absDeltaX >= GESTURESIZE or absDeltaY >= GESTURESIZE:
+					#Makes sure it wasn't a hand movement or complete jerk
+					if absDeltaX > MAX_DISTANCE or absDeltaY > MAX_DISTANCE-100:
+						continue
+					#cv2.line(frame,previousFinger[i],pointToPlace,[0,255,0],1)
+					#Get an angle
+					point1 = list(previousFinger[i])
+					point2 = list(pointToPlace)
+					vList = [point1, point2]
+					vector = np.array(vList)
+					DEFAULT_VECTOR = np.array([point1,[1000,point2[1]]])
+					swipeAngle = Angle(DEFAULT_VECTOR, vector)
+					print ("Previous Finger: %s" % (previousFinger[i],) + " - Moved Finger: %s" % (pointToPlace,) + " - Angle: %s" % swipeAngle)
+		previousFinger[i] = pointToPlace #The new point is now a past point
 			
 	
 	#Finger is pointed/raised if the distance of between fingertip to the center mass is larger
@@ -191,17 +210,7 @@ while(1):
 			result = result + 1
 	
 	#Print number of pointed fingers
-	cv2.putText(frame,str(result),(100,100),font,2,(255,255,255),2)
-	
-	#show height raised fingers
-	#cv2.putText(frame,'finger1',tuple(finger[0]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger2',tuple(finger[1]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger3',tuple(finger[2]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger4',tuple(finger[3]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger5',tuple(finger[4]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger6',tuple(finger[5]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger7',tuple(finger[6]),font,2,(255,255,255),2)
-	#cv2.putText(frame,'finger8',tuple(finger[7]),font,2,(255,255,255),2)
+	#cv2.putText(frame,str(result),(100,100),font,2,(255,255,255),2)
 		
 	#Print bounding rectangle
 	x,y,w,h = cv2.boundingRect(cnts)
@@ -217,6 +226,9 @@ while(1):
 	
 	#Print execution time
 	#print time.time()-start_time
+
+	#Calm down there boy
+	#time.sleep(10)
 	
 	#close the output video by pressing 'ESC'
 	k = cv2.waitKey(5) & 0xFF
