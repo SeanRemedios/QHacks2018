@@ -37,8 +37,8 @@ pygame.display.set_caption('Swipe Defender')
 pygame.mixer.pre_init(44100, -16, 2, 2048) # setup mixer to avoid sound lag
 pygame.init()
 pygame.mixer.init()
-#pygame.mixer.music.load('AdventureMeme-MacLeod.mp3')
-#pygame.mixer.music.play(-1)
+pygame.mixer.music.load('AdventureMeme-MacLeod (online-audio-converter.com).ogg')
+pygame.mixer.music.play(-1)
 
 #Intruder src=https://jesse-m.itch.io/jungle-pack
 intruderSprites = spritesheet('intruder.png')
